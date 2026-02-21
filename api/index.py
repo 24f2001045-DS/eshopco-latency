@@ -11,7 +11,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_FILE = os.path.join(BASE_DIR, "telemetry.json")
 
 with open(DATA_FILE, "r") as f:
-    DATA = json.load(f)
+    raw = json.load(f)
+
+# If JSON is wrapped inside a key like "data" or "telemetry"
+if isinstance(raw, dict):
+    DATA = raw.get("data") or raw.get("telemetry") or list(raw.values())[0]
+else:
+    DATA = raw
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
