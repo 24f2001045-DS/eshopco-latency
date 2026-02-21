@@ -37,12 +37,9 @@ CORS_HEADERS = {
 }
 
 
-@app.post("/")
+@app.post("/latency")
 async def handler(request: Request):
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    body = await request.json()
 
     regions = body.get("regions", [])
     threshold = body.get("threshold_ms", 0)
@@ -63,15 +60,9 @@ async def handler(request: Request):
 
         for r in region_data:
             if "latency_ms" in r:
-                try:
-                    latencies.append(float(r["latency_ms"]))
-                except:
-                    pass
+                latencies.append(float(r["latency_ms"]))
             if "uptime" in r:
-                try:
-                    uptimes.append(float(r["uptime"]))
-                except:
-                    pass
+                uptimes.append(float(r["uptime"]))
 
         if not latencies or not uptimes:
             continue
@@ -94,7 +85,7 @@ async def handler(request: Request):
             "breaches": breaches
         })
 
-    response = JSONResponse(response_data)
+    return JSONResponse(response_data)
 
     for key, value in CORS_HEADERS.items():
         response.headers[key] = value
