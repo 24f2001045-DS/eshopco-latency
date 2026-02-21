@@ -40,43 +40,59 @@ DATA_PATH = os.path.join(BASE_DIR, "data", "q-vercel-latency.json")
 with open(DATA_PATH) as f:
     telemetry = json.load(f)
 
-# ---------- Endpoint ----------
-@app.post("/latency")
-async def latency(request: Request):
-    body = await request.json()
 
+@app.post("/latency")
+async def latency_metrics(request: Request):
+
+    body = await request.json()
     regions = body.get("regions", [])
     threshold = body.get("threshold_ms", 0)
 
-    result = []
+    results = {}
 
     for region in regions:
-        region_data = [r for r in DATA if r.get("region") == region]
 
-        if not region_data:
+        rows = [r for r in telemetry if r.get("region") == region]
+
+        latencies = [r["latency_ms"] for r in rows if "latency_ms" in r]
+        uptimes = [r["uptime_pct"] for r in rows if "uptime_pct" in r]
+
+        if not latencies:
+            results[region] = {
+                "avg_latency": 0,
+                "p95_latency": 0,
+                "avg_uptime": 0,
+                "breaches": 0
+            }
             continue
 
-        latencies = [float(r["latency_ms"]) for r in region_data if "latency_ms" in r]
-        uptimes = [float(r["uptime"]) for r in region_data if "uptime" in r]
-
-        if not latencies or not uptimes:
-            continue
-
+        # Mean
         avg_latency = sum(latencies) / len(latencies)
-        avg_uptime = sum(uptimes) / len(uptimes)
 
-        latencies_sorted = sorted(latencies)
-        n = len(latencies_sorted)
-        p95 = latencies_sorted[max(math.ceil(0.95 * n) - 1, 0)]
+        # Correct percentile calculation
+        sorted_lat = sorted(latencies)
+        n = len(sorted_lat)
 
-        breaches = sum(1 for l in latencies if l > threshold)
+        pos = 0.95 * (n - 1)
+        lower = math.floor(pos)
+        upper = math.ceil(pos)
 
-        result.append({
-            "region": region,
+        if lower == upper:
+            p95_latency = sorted_lat[int(pos)]
+        else:
+            weight = pos - lower
+            p95_latency = sorted_lat[lower] * (1 - weight) + sorted_lat[upper] * weight
+
+        # Mean uptime
+        avg_uptime = sum(uptimes) / len(uptimes) if uptimes else 0
+
+        breaches = sum(1 for v in latencies if v > threshold)
+
+        results[region] = {
             "avg_latency": avg_latency,
-            "p95_latency": p95,
+            "p95_latency": p95_latency,
             "avg_uptime": avg_uptime,
             "breaches": breaches
-        })
+        }
 
-    return JSONResponse(result)
+    return JSONResponse(content={"regions": results}, headers=CORS_HEADERS)
