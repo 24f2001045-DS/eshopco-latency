@@ -71,9 +71,3 @@ async def handler(request: Request):
     return response
 
 
-@app.options("/")
-async def options():
-    response = JSONResponse({})
-    for key, value in CORS_HEADERS.items():
-        response.headers[key] = value
-    return response
