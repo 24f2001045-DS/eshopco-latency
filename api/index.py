@@ -2,35 +2,43 @@ import json
 import os
 import math
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
 
-# ✅ Proper CORS (this fixes OPTIONS automatically)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Expose-Headers": "Access-Control-Allow-Origin",
+}
 
-# ---------- Load telemetry ----------
-DATA = []
+@app.middleware("http")
+async def add_cors(request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
-try:
-    DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "telemetry.json")
-    with open(DATA_FILE, "r") as f:
-        raw = json.load(f)
 
-    if isinstance(raw, list):
-        DATA = raw
-    elif isinstance(raw, dict):
-        DATA = next((v for v in raw.values() if isinstance(v, list)), [])
-except Exception as e:
-    print("Telemetry load error:", str(e))
-    DATA = []
+@app.options("/{path:path}")
+async def options_handler():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
+    )
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_PATH = os.path.join(BASE_DIR, "data", "q-vercel-latency.json")
+
+with open(DATA_PATH) as f:
+    telemetry = json.load(f)
 
 # ---------- Endpoint ----------
 @app.post("/latency")
