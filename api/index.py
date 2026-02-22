@@ -41,7 +41,7 @@ with open(DATA_PATH) as f:
     telemetry = json.load(f)
 
 
-@app.post("/latency")
+@app.post("")
 async def latency_metrics(request: Request):
 
     body = await request.json()
