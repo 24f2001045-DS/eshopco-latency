@@ -95,4 +95,4 @@ async def latency_metrics(request: Request):
             "breaches": breaches
         }
 
-    return JSONResponse(content=results, headers=CORS_HEADERS)
+    return JSONResponse(content={"regions":results}, headers=CORS_HEADERS)
